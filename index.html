@@ -124,10 +124,12 @@
         .task-desc { display: block; font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }
     </style>
 </head>
-<body class="is-public"> <div class="container">
+<body class="is-public"> 
+
+<div class="container">
     <header>
-        <h1>👁️ DOORS Live Progress</h1>
-        <p>หน้าเว็บติดตามความคืบหน้าแบบเชื่อมโยงกันทุกเครื่อง</p>
+        <h1>👁️ DOORS Ultimate Challenge Live Progress</h1>
+        <p>หน้าเว็บติดตามความคืบหน้าแบบเชื่อมโยงกันทุกเครื่องด้วยฐานข้อมูลจริง</p>
     </header>
 
     <div class="admin-panel">
@@ -200,18 +202,18 @@
 </div>
 
 <script>
-    // 🔗 ระบบเชื่อมต่อฐานข้อมูลอัตโนมัติด้วยข้อมูลจริงของคุณ
+    // 🔗 ข้อมูลเชื่อมต่อฐานข้อมูลตัวล่าสุดของคุณแบบสมบูรณ์
     const SUPABASE_URL = "https://vynsyipexjbtwknosbnf.supabase.co"; 
-    const SUPABASE_KEY = "EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5bnN5aXBleGpidHdrbm9zYm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTQwNDMsImV4cCI6MjA5NTUzMDA0M30.VopH3RPHUHdCBcrw_cKE3NBj0V5z6WB8iROiuj83gpw";
+    const SUPABASE_KEY = "sb_publishable_QL5leM7omXWK14EeLj_MIA_SUJwpt-p";
     
-    // ตั้งรหัสลับสำหรับกดแก้ข้อมูลแอดมิน (คุณสามารถแก้ไขคำในเครื่องหมายคำพูดนี้ได้เลย)
+    // 🔑 รหัสสำหรับเข้าสู่ระบบแอดมินเพื่อกดติ๊กเลือกผ่านหน้าเว็บ (คุณแก้ไขตรงนี้ได้)
     const ADMIN_PASSWORD = "doors1234"; 
 
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const checkboxes = document.querySelectorAll('.progress-check');
     let isAdmin = false;
 
-    // ฟังก์ชันตรวจสอบรหัสผ่านแอดมิน
+    // ฟังก์ชันเข้าสู่ระบบของแอดมินฝั่งหน้าเว็บ
     function checkAdminPass() {
         const passInput = document.getElementById('admin-pass').value;
         if(passInput === ADMIN_PASSWORD) {
@@ -222,10 +224,10 @@
             document.getElementById('login-form').style.display = 'none';
             document.getElementById('logout-form').style.display = 'block';
             
-            // เปิดให้คลิก checkbox ได้
+            // เปิดสถานะปุ่มให้ติ๊กได้
             checkboxes.forEach(cb => cb.disabled = false);
         } else {
-            alert('รหัสผ่านไม่ถูกต้องครับ!');
+            alert('รหัสผ่านแอดมินไม่ถูกต้อง!');
         }
     }
 
@@ -240,26 +242,29 @@
         checkboxes.forEach(cb => cb.disabled = true);
     }
 
-    // ดึงข้อมูลความคืบหน้าจากฐานข้อมูลออนไลน์มารันบนเว็บ
+    // ดึงข้อมูลออนไลน์จากตารางใน Supabase
     async function fetchLiveProgress() {
-        const { data, error } = await supabase.from('doors_progress').select('*');
-        
-        if (error) {
-            console.error('Error fetching data:', error);
-            return;
-        }
+        try {
+            const { data, error } = await supabase.from('doors_progress').select('*');
+            
+            if (error) {
+                console.error('Supabase Error:', error);
+                return;
+            }
 
-        // อัปเดตสถานะติ๊กถูกตามฐานข้อมูล
-        if(data && data.length > 0) {
-            data.forEach(row => {
-                const cb = document.querySelector(`.progress-check[data-id="${row.task_id}"]`);
-                if(cb) cb.checked = row.is_checked;
-            });
+            if(data && data.length > 0) {
+                data.forEach(row => {
+                    const cb = document.querySelector(`.progress-check[data-id="${row.task_id}"]`);
+                    if(cb) cb.checked = row.is_checked;
+                });
+            }
+            calculateUI();
+        } catch (err) {
+            console.error('Connection Error:', err);
         }
-        calculateUI();
     }
 
-    // คำนวณหลอดพลังและตัวเลขเปอร์เซ็นต์
+    // คำนวณ UI เปอร์เซ็นต์รวมและเศษส่วนของแต่ละชั้น
     function calculateUI() {
         const totalTasks = checkboxes.length;
         let checkedCount = 0;
@@ -284,34 +289,34 @@
         }
     }
 
-    // ฟังก์ชันส่งข้อมูลเมื่อแอดมินคลิกติ๊กเลือก
+    // ฟังก์ชันส่งค่าอัปเดตออนไลน์เมื่อกดติ๊กเลือก
     async function handleCheckboxChange(e) {
         if(!isAdmin) return;
         
         const taskId = parseInt(e.target.getAttribute('data-id'));
         const isChecked = e.target.checked;
 
-        calculateUI(); // อัปเดตหน้าจอทันทีเพื่อความลื่นไหล
+        calculateUI(); // ปรับแต่งหน้าจอแอดมินล่วงหน้าทันทีเพื่อความรวดเร็ว
 
-        // ส่งคำสั่งอัปเดตไปยัง Supabase
+        // ส่งคำสั่ง upsert ไปยังฐานข้อมูล
         const { error } = await supabase
             .from('doors_progress')
             .upsert({ task_id: taskId, is_checked: isChecked }, { onConflict: 'task_id' });
 
         if (error) {
-            console.error('Error updating online data:', error);
+            console.error('Error Syncing Data:', error);
         }
     }
 
-    // ผูก Event การคลิก
+    // เปิดใช้งาน Event การคลิกสวิตช์
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', handleCheckboxChange);
     });
 
-    // ให้เว็บดึงข้อมูลใหม่แบบ Real-time ทุกๆ 5 วินาที
-    setInterval(fetchLiveProgress, 5000);
+    // ดึงความคืบหน้าใหม่ล่าสุดทุกๆ 4 วินาที (เพื่อให้คนดูเห็นสเตตัสอัปเดตอย่างต่อเนื่อง)
+    setInterval(fetchLiveProgress, 4000);
 
-    // โหลดข้อมูลครั้งแรกตอนเปิดหน้าเว็บ
+    // ทำงานเมื่อเปิดเว็บขึ้นมาครั้งแรก
     window.addEventListener('DOMContentLoaded', fetchLiveProgress);
 </script>
 
