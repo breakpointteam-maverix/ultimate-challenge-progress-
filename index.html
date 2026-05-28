@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roblox Doors - All Floors Progress Tracker</title>
+    <title>DOORS - Live Progress Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-color: #0c0c0e;
@@ -12,13 +13,11 @@
             --text-color: #e2e8f0;
             --text-muted: #71717a;
             --success-color: #22c55e;
-            
-            /* สีประจำแต่ละโซน */
-            --color-backdoors: #f43f5e; /* แดงเข้ม */
-            --color-hotel: #eab308;     /* เหลืองทอง */
-            --color-rooms: #a855f7;     /* ม่วง Retro */
-            --color-outdoors: #06b6d4;  /* ฟ้าอมเขียว */
-            --color-mines: #f97316;     /* ส้มเหมือง */
+            --color-backdoors: #f43f5e;
+            --color-hotel: #eab308;
+            --color-rooms: #a855f7;
+            --color-outdoors: #06b6d4;
+            --color-mines: #f97316;
         }
 
         body {
@@ -31,84 +30,65 @@
             justify-content: center;
         }
 
-        .container {
-            width: 100%;
-            max-width: 850px;
-        }
+        .container { width: 100%; max-width: 850px; }
 
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+        header { text-align: center; margin-bottom: 30px; position: relative; }
+        header h1 { color: #fff; font-size: 2.8rem; margin-bottom: 5px; }
+        header p { color: var(--text-muted); font-size: 1.1rem; }
 
-        header h1 {
+        /* แถบควบคุมสถานะแอดมิน */
+        .admin-panel {
+            background: #1c1c21;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        .status-public { background: #27272a; color: #a1a1aa; }
+        .status-admin { background: #064e3b; color: #34d399; }
+        
+        .admin-panel input {
+            background: #0c0c0e;
+            border: 1px solid var(--border-color);
             color: #fff;
-            font-size: 2.8rem;
-            margin-bottom: 5px;
-            text-shadow: 0 0 15px rgba(234, 179, 8, 0.2);
+            padding: 6px 10px;
+            border-radius: 4px;
         }
-
-        header p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
+        .admin-panel button {
+            background: #27272a;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
         }
+        .admin-panel button:hover { background: #3f3f46; }
 
-        /* Progress Bar ภาพรวม */
+        /* Progress Bar */
         .overall-progress {
             background: var(--card-bg);
             padding: 20px;
             border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
             margin-bottom: 35px;
             border: 1px solid var(--border-color);
         }
+        .progress-info { display: flex; justify-content: space-between; margin-bottom: 12px; font-weight: bold; }
+        .progress-bar-bg { background: #1f1f23; border-radius: 10px; height: 24px; overflow: hidden; border: 1px solid #2d2d34; }
+        .progress-bar-fill { background: linear-gradient(90deg, var(--color-backdoors), var(--color-hotel), var(--color-mines)); height: 100%; width: 0%; transition: width 0.5s ease; }
 
-        .progress-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            font-weight: bold;
-            font-size: 1.1rem;
-        }
-
-        .progress-bar-bg {
-            background: #1f1f23;
-            border-radius: 10px;
-            height: 24px;
-            width: 100%;
-            overflow: hidden;
-            border: 1px solid #2d2d34;
-        }
-
-        .progress-bar-fill {
-            background: linear-gradient(90deg, var(--color-backdoors), var(--color-hotel), var(--color-mines));
-            height: 100%;
-            width: 0%;
-            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* โครงสร้างกล่องแต่ละโซน */
-        .floor-section {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 25px rgba(0,0,0,0.4);
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .floor-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 6px;
-            height: 100%;
-        }
-
-        /* แบ่งสีตามโซน */
+        /* ด่านต่างๆ */
+        .floor-section { background: var(--card-bg); border-radius: 16px; padding: 25px; margin-bottom: 30px; border: 1px solid var(--border-color); position: relative; overflow: hidden; }
+        .floor-section::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
+        
         .zone-backdoors::before { background-color: var(--color-backdoors); }
         .zone-hotel::before { background-color: var(--color-hotel); }
         .zone-rooms::before { background-color: var(--color-rooms); }
@@ -121,133 +101,51 @@
         .zone-outdoors .floor-title span:first-child { color: var(--color-outdoors); }
         .zone-mines .floor-title span:first-child { color: var(--color-mines); }
 
-        .floor-title {
-            font-size: 1.6rem;
-            font-weight: bold;
-            margin-top: 0;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .floor-title { font-size: 1.6rem; font-weight: bold; margin: 0 0 20px 0; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .floor-status-text { font-size: 1rem; color: var(--text-muted); background: #1c1c21; padding: 4px 12px; border-radius: 20px; }
 
-        .floor-status-text {
-            font-size: 1rem;
-            color: var(--text-muted);
-            background: #1c1c21;
-            padding: 4px 12px;
-            border-radius: 20px;
-            border: 1px solid #2d2d34;
-        }
+        .task-list { list-style: none; padding: 0; margin: 0; }
+        .task-item { display: flex; align-items: center; padding: 14px 10px; border-bottom: 1px solid #1a1a20; }
+        .task-item:last-child { border-bottom: none; }
 
-        /* รายการภารกิจ */
-        .task-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .task-item {
-            display: flex;
-            align-items: center;
-            padding: 14px 10px;
-            border-bottom: 1px solid #1a1a20;
-            transition: background 0.2s;
-        }
-
-        .task-item:last-child {
-            border-bottom: none;
-        }
-
-        .task-item:hover {
-            background: #18181c;
-        }
-
-        /* Custom Checkbox */
-        .checkbox-container {
-            position: relative;
-            padding-left: 40px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            user-select: none;
-            width: 100%;
-        }
-
-        .checkbox-container input {
-            position: absolute;
-            opacity: 0;
-            cursor: pointer;
-            height: 0;
-            width: 0;
-        }
-
-        .checkmark {
-            position: absolute;
-            top: 2px;
-            left: 0;
-            height: 24px;
-            width: 24px;
-            background-color: #1f1f23;
-            border-radius: 6px;
-            border: 2px solid #3f3f46;
-            transition: all 0.2s;
-        }
-
-        .checkbox-container:hover input ~ .checkmark {
-            border-color: #71717a;
-        }
-
-        .checkbox-container input:checked ~ .checkmark {
-            background-color: var(--success-color);
-            border-color: var(--success-color);
-        }
-
-        .checkmark:after {
-            content: "";
-            position: absolute;
-            display: none;
-        }
-
-        .checkbox-container input:checked ~ .checkmark:after {
-            display: block;
-        }
-
-        .checkbox-container .checkmark:after {
-            left: 8px;
-            top: 4px;
-            width: 5px;
-            height: 11px;
-            border: solid #000;
-            border-width: 0 3px 3px 0;
-            transform: rotate(45deg);
-        }
-
-        .checkbox-container input:checked ~ .task-text {
-            text-decoration: line-through;
-            color: var(--text-muted);
-        }
-
-        .task-desc {
-            display: block;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
+        /* Checkbox Style */
+        .checkbox-container { position: relative; padding-left: 40px; cursor: pointer; font-size: 1.1rem; user-select: none; width: 100%; }
+        .checkbox-container input { position: absolute; opacity: 0; cursor: pointer; }
+        .checkmark { position: absolute; top: 2px; left: 0; height: 24px; width: 24px; background-color: #1f1f23; border-radius: 6px; border: 2px solid #3f3f46; }
+        
+        /* สไตล์เมื่อล็อก (โหมดคนดู) */
+        body.is-public .checkbox-container { cursor: not-allowed; }
+        
+        .checkbox-container input:checked ~ .checkmark { background-color: var(--success-color); border-color: var(--success-color); }
+        .checkmark:after { content: ""; position: absolute; display: none; }
+        .checkbox-container input:checked ~ .checkmark:after { display: block; }
+        .checkbox-container .checkmark:after { left: 8px; top: 4px; width: 5px; height: 11px; border: solid #000; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+        .checkbox-container input:checked ~ .task-text { text-decoration: line-through; color: var(--text-muted); }
+        .task-desc { display: block; font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; }
     </style>
 </head>
-<body>
-
-<div class="container">
+<body class="is-public"> <div class="container">
     <header>
-        <h1>👁️ DOORS Master Progress</h1>
-        <p>บันทึกการเดินทางผ่านฝันร้ายในทุกมิติและทุกชั้น</p>
+        <h1>👁️ DOORS Live Progress</h1>
+        <p>หน้าเว็บติดตามความคืบหน้าแบบเชื่อมโยงกันทุกเครื่อง</p>
     </header>
+
+    <div class="admin-panel">
+        <div>
+            สถานะปัจจุบัน: <span id="current-mode-badge" class="status-badge status-public">โหมดคนดู (Read-Only)</span>
+        </div>
+        <div id="login-form">
+            <input type="password" id="admin-pass" placeholder="ใส่รหัสลับเพื่อแก้ไข...">
+            <button onclick="checkAdminPass()">เข้าสู่ระบบ</button>
+        </div>
+        <div id="logout-form" style="display:none;">
+            <button onclick="logoutAdmin()">ออกจากระบบแอดมิน</button>
+        </div>
+    </div>
 
     <div class="overall-progress">
         <div class="progress-info">
-            <span>ความสำเร็จรวมทุกด่าน (100% Completion)</span>
+            <span>ความสำเร็จรวมทุกด่าน</span>
             <span id="progress-percent">0%</span>
         </div>
         <div class="progress-bar-bg">
@@ -256,231 +154,165 @@
     </div>
 
     <div class="floor-section zone-backdoors">
-        <div class="floor-title">
-            <span>The Backdoors (-100)</span>
-            <span class="floor-status-text" id="zone0-status">0/0</span>
-        </div>
+        <div class="floor-title"><span>The Backdoors (-100)</span> <span class="floor-status-text" id="zone0-status">0/0</span></div>
         <ul class="task-list">
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="0">
-                    <span class="checkmark"></span>
-                    <span class="task-text">เปิดลิฟต์เข้าสู่ The Backdoors</span>
-                    <span class="task-desc">หาทางเข้าลับจากห้อง Lobby ได้สำเร็จ</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="0">
-                    <span class="checkmark"></span>
-                    <span class="task-text">รอดจากกลไกจำกัดเวลา (Lookman & Blitz)</span>
-                    <span class="task-desc">ปั๊มสวิตช์เวลาและหลบผีสปีดด่วนสำเร็จ</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="0">
-                    <span class="checkmark"></span>
-                    <span class="task-text">ผ่านประตูหลังบานที่ -100</span>
-                    <span class="task-desc">หนีรอดและได้รับ "Vial of Nowhere" เพื่อไปต่อ</span>
-                </label>
-            </li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="0" data-zone="0" disabled><span class="checkmark"></span><span class="task-text">เปิดลิฟต์เข้าสู่ The Backdoors</span><span class="task-desc">หาทางเข้าลับจากห้อง Lobby ได้สำเร็จ</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="1" data-zone="0" disabled><span class="checkmark"></span><span class="task-text">รอดจากกลไกจำกัดเวลา (Lookman & Blitz)</span><span class="task-desc">ปั๊มสวิตช์เวลาและหลบผีสปีดด่วนสำเร็จ</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="2" data-zone="0" disabled><span class="checkmark"></span><span class="task-text">ผ่านประตูหลังบานที่ -100</span><span class="task-desc">หนีรอดและได้รับ "Vial of Nowhere" เพื่อไปต่อ</span></label></li>
         </ul>
     </div>
 
     <div class="floor-section zone-hotel">
-        <div class="floor-title">
-            <span>Floor 1: The Hotel</span>
-            <span class="floor-status-text" id="zone1-status">0/0</span>
-        </div>
+        <div class="floor-title"><span>Floor 1: The Hotel</span> <span class="floor-status-text" id="zone1-status">0/0</span></div>
         <ul class="task-list">
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="1">
-                    <span class="checkmark"></span>
-                    <span class="task-text">ผ่านห้องสมุดของ Figure (ประตู 50)</span>
-                    <span class="task-desc">แอบถอดรหัสหนังสือโดยไม่โดน Figure ตบ</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="1">
-                    <span class="checkmark"></span>
-                    <span class="task-text">วิ่งหนี Seek ตาเดียว (ทั้ง 2 รอบ)</span>
-                    <span class="task-desc">เลี้ยวถูกทาง หมอบคลานผ่านไฟไหม้ทันเวลา</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="1">
-                    <span class="checkmark"></span>
-                    <span class="task-text">ผ่านด่านสวนเรือนกระจก (The Greenhouse)</span>
-                    <span class="task-desc">เดินฝ่าความมืดช่วงประตู 90+ โดยไม่โดน Rush หรือ Snare</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="1">
-                    <span class="checkmark"></span>
-                    <span class="task-text">เคลียร์ประตู 100 (ซ่อมลิฟต์หนี Figure)</span>
-                    <span class="task-desc">แก้สวิตช์ไฟวงจรและสับคัตเอาต์สำเร็จเพื่อจบโหมดโรงแรม</span>
-                </label>
-            </li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="3" data-zone="1" disabled><span class="checkmark"></span><span class="task-text">ผ่านห้องสมุดของ Figure (ประตู 50)</span><span class="task-desc">แอบถอดรหัสหนังสือโดยไม่โดน Figure ตบ</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="4" data-zone="1" disabled><span class="checkmark"></span><span class="task-text">วิ่งหนี Seek ตาเดียว (ทั้ง 2 รอบ)</span><span class="task-desc">เลี้ยวถูกทาง หมอบคลานผ่านไฟไหม้ทันเวลา</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="5" data-zone="1" disabled><span class="checkmark"></span><span class="task-text">ผ่านด่านสวนเรือนกระจก (The Greenhouse)</span><span class="task-desc">เดินฝ่าความมืดช่วงประตู 90+ โดยไม่โดน Rush หรือ Snare</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="6" data-zone="1" disabled><span class="checkmark"></span><span class="task-text">เคลียร์ประตู 100 (ซ่อมลิฟต์หนี Figure)</span><span class="task-desc">แก้สวิตช์ไฟวงจรและสับคัตเอาต์สำเร็จเพื่อจบโหมดโรงแรม</span></label></li>
         </ul>
     </div>
 
     <div class="floor-section zone-rooms">
-        <div class="floor-title">
-            <span>The Rooms (A-000)</span>
-            <span class="floor-status-text" id="zone2-status">0/0</span>
-        </div>
+        <div class="floor-title"><span>The Rooms (A-000)</span> <span class="floor-status-text" id="zone2-status">0/0</span></div>
         <ul class="task-list">
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="2">
-                    <span class="checkmark"></span>
-                    <span class="task-text">ไขปริศนาทางเข้าห้องบานประตู A-000</span>
-                    <span class="task-desc">ใช้กุญแจผี (Skeleton Key) และโยกคันโยกในห้องมืดที่ประตู 60</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="2">
-                    <span class="checkmark"></span>
-                    <span class="task-text">รอดพ้นจากผีตระกูลสเปเชียล (A-60, A-90, A-120)</span>
-                    <span class="task-desc">หลบในตู้ล็อกเกอร์โบราณ และห้ามขยับเมาส์ตอน A-90 โผล่</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="2">
-                    <span class="checkmark"></span>
-                    <span class="task-text">เดินเท้าทะลุถึงห้อง A-1000</span>
-                    <span class="task-desc">มาราธอนผ่าน 1,000 ห้องเพื่อรับ "NVG" หรือฉายาในตำนาน</span>
-                </label>
-            </li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="7" data-zone="2" disabled><span class="checkmark"></span><span class="task-text">ไขปริศนาทางเข้าห้องบานประตู A-000</span><span class="task-desc">ใช้กุญแจผี (Skeleton Key) และโยกคันโยกในห้องมืดที่ประตู 60</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="8" data-zone="2" disabled><span class="checkmark"></span><span class="task-text">รอดพ้นจากผีตระกูลสเปเชียล (A-60, A-90, A-120)</span><span class="task-desc">หลบในตู้ล็อกเกอร์โบราณ และห้ามขยับเมาส์ตอน A-90 โผล่</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="9" data-zone="2" disabled><span class="checkmark"></span><span class="task-text">เดินเท้าทะลุถึงห้อง A-1000</span><span class="task-desc">มาราธอนผ่าน 1,000 ห้องเพื่อรับ "NVG" หรือฉายาในตำนาน</span></label></li>
         </ul>
     </div>
 
     <div class="floor-section zone-outdoors">
-        <div class="floor-title">
-            <span>The Subfloor / Outdoors</span>
-            <span class="floor-status-text" id="zone3-status">0/0</span>
-        </div>
+        <div class="floor-title"><span>The Subfloor / Outdoors</span> <span class="floor-status-text" id="zone3-status">0/0</span></div>
         <ul class="task-list">
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="3">
-                    <span class="checkmark"></span>
-                    <span class="task-text">ลิฟต์ตกกระแทกพื้นสู่ด้านล่าง (The Crash)</span>
-                    <span class="task-desc">ดูคัตซีนลิฟต์ถล่มลงจากโรงแรมรอดมาได้อย่างหวุดหวิด</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="3">
-                    <span class="checkmark"></span>
-                    <span class="task-text">สำรวจโซน Outdoors (เหมืองภายนอก)</span>
-                    <span class="task-desc">เดินเท้าผ่านซากปรักหักพังและนั่งร้านก่อนจะมุ่งหน้าลงใต้ดิน</span>
-                </label>
-            </li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="10" data-zone="3" disabled><span class="checkmark"></span><span class="task-text">ลิฟต์ตกกระแทกพื้นสู่ด้านล่าง (The Crash)</span><span class="task-desc">ดูคัตซีนลิฟต์ถล่มลงจากโรงแรมรอดมาได้อย่างหวุดหวิด</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="11" data-zone="3" disabled><span class="checkmark"></span><span class="task-text">สำรวจโซน Outdoors (เหมืองภายนอก)</span><span class="task-desc">เดินเท้าผ่านซากปรักหักพังและนั่งร้านก่อนจะมุ่งหน้าลงใต้ดิน</span></label></li>
         </ul>
     </div>
 
     <div class="floor-section zone-mines">
-        <div class="floor-title">
-            <span>Floor 2: The Mines</span>
-            <span class="floor-status-text" id="zone4-status">0/0</span>
-        </div>
+        <div class="floor-title"><span>Floor 2: The Mines</span> <span class="floor-status-text" id="zone4-status">0/0</span></div>
         <ul class="task-list">
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="4">
-                    <span class="checkmark"></span>
-                    <span class="task-text">สับสวิตช์จัดระบบรางรถไฟ (Minecart Track)</span>
-                    <span class="task-desc">เคลียร์เส้นทางและดันรถเหมืองทะลวงสิ่งกีดขวาง</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="4">
-                    <span class="checkmark"></span>
-                    <span class="task-text">หนีตายฝูงยักษ์ Grumble ในรัง (ประตู 150)</span>
-                    <span class="task-desc">หาเครื่องสแกนและเคลียร์ภารกิจที่ยากบีบหัวใจในห้อง The Nest</span>
-                </label>
-            </li>
-            <li class="task-item">
-                <label class="checkbox-container">
-                    <input type="checkbox" class="progress-check" data-zone="4">
-                    <span class="checkmark"></span>
-                    <span class="task-text">พิชิตประตูบอส 200 (The Dam)</span>
-                    <span class="task-desc">เอาชนะบอสใหญ่ตัวจี๊ด ปิดประตูเขื่อน และหนีขึ้นลิฟต์สำเร็จ!</span>
-                </label>
-            </li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="12" data-zone="4" disabled><span class="checkmark"></span><span class="task-text">สับสวิตช์จัดระบบรางรถไฟ (Minecart Track)</span><span class="task-desc">เคลียร์เส้นทางและดันรถเหมืองทะลวงสิ่งกีดขวาง</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="13" data-zone="4" disabled><span class="checkmark"></span><span class="task-text">หนีตายฝูงยักษ์ Grumble ในรัง (ประตู 150)</span><span class="task-desc">หาเครื่องสแกนและเคลียร์ภารกิจที่ยากบีบหัวใจในห้อง The Nest</span></label></li>
+            <li class="task-item"><label class="checkbox-container"><input type="checkbox" class="progress-check" data-id="14" data-zone="4" disabled><span class="checkmark"></span><span class="task-text">พิชิตประตูบอส 200 (The Dam)</span><span class="task-desc">เอาชนะบอสใหญ่ตัวจี๊ด ปิดประตูเขื่อน และหนีขึ้นลิฟต์สำเร็จ!</span></label></li>
         </ul>
     </div>
 </div>
 
 <script>
-    const checkboxes = document.querySelectorAll('.progress-check');
-    const progressBar = document.getElementById('progress-bar');
-    const progressPercent = document.getElementById('progress-percent');
+    // 🔗 ระบบเชื่อมต่อฐานข้อมูลอัตโนมัติด้วยข้อมูลจริงของคุณ
+    const SUPABASE_URL = "https://vynsyipexjbtwknosbnf.supabase.co"; 
+    const SUPABASE_KEY = "EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5bnN5aXBleGpidHdrbm9zYm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTQwNDMsImV4cCI6MjA5NTUzMDA0M30.VopH3RPHUHdCBcrw_cKE3NBj0V5z6WB8iROiuj83gpw";
     
-    // มีทั้งหมด 5 โซน (0 ถึง 4)
-    const totalZones = 5;
+    // ตั้งรหัสลับสำหรับกดแก้ข้อมูลแอดมิน (คุณสามารถแก้ไขคำในเครื่องหมายคำพูดนี้ได้เลย)
+    const ADMIN_PASSWORD = "doors1234"; 
 
-    function updateProgress() {
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const checkboxes = document.querySelectorAll('.progress-check');
+    let isAdmin = false;
+
+    // ฟังก์ชันตรวจสอบรหัสผ่านแอดมิน
+    function checkAdminPass() {
+        const passInput = document.getElementById('admin-pass').value;
+        if(passInput === ADMIN_PASSWORD) {
+            isAdmin = true;
+            document.body.classList.remove('is-public');
+            document.getElementById('current-mode-badge').innerText = "โหมดแอดมิน (แก้ไขได้)";
+            document.getElementById('current-mode-badge').className = "status-badge status-admin";
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('logout-form').style.display = 'block';
+            
+            // เปิดให้คลิก checkbox ได้
+            checkboxes.forEach(cb => cb.disabled = false);
+        } else {
+            alert('รหัสผ่านไม่ถูกต้องครับ!');
+        }
+    }
+
+    function logoutAdmin() {
+        isAdmin = false;
+        document.body.classList.add('is-public');
+        document.getElementById('current-mode-badge').innerText = "โหมดคนดู (Read-Only)";
+        document.getElementById('current-mode-badge').className = "status-badge status-public";
+        document.getElementById('login-form').style.display = 'block';
+        document.getElementById('logout-form').style.display = 'none';
+        document.getElementById('admin-pass').value = '';
+        checkboxes.forEach(cb => cb.disabled = true);
+    }
+
+    // ดึงข้อมูลความคืบหน้าจากฐานข้อมูลออนไลน์มารันบนเว็บ
+    async function fetchLiveProgress() {
+        const { data, error } = await supabase.from('doors_progress').select('*');
+        
+        if (error) {
+            console.error('Error fetching data:', error);
+            return;
+        }
+
+        // อัปเดตสถานะติ๊กถูกตามฐานข้อมูล
+        if(data && data.length > 0) {
+            data.forEach(row => {
+                const cb = document.querySelector(`.progress-check[data-id="${row.task_id}"]`);
+                if(cb) cb.checked = row.is_checked;
+            });
+        }
+        calculateUI();
+    }
+
+    // คำนวณหลอดพลังและตัวเลขเปอร์เซ็นต์
+    function calculateUI() {
         const totalTasks = checkboxes.length;
         let checkedCount = 0;
-
-        // ตัวแปรนับจำนวนแยกของแต่ละโซน
-        let zoneCounts = Array(totalZones).fill(0);
-        let zoneChecked = Array(totalZones).fill(0);
+        let zoneCounts = Array(5).fill(0);
+        let zoneChecked = Array(5).fill(0);
 
         checkboxes.forEach(checkbox => {
             const zoneId = parseInt(checkbox.getAttribute('data-zone'));
             zoneCounts[zoneId]++;
-
             if (checkbox.checked) {
                 checkedCount++;
                 zoneChecked[zoneId]++;
             }
         });
 
-        // คำนวณเปอร์เซ็นต์รวมทั้งหมด
         const percent = totalTasks > 0 ? Math.round((checkedCount / totalTasks) * 100) : 0;
-        progressBar.style.width = `${percent}%`;
-        progressPercent.innerText = `${percent}%`;
+        document.getElementById('progress-bar').style.width = `${percent}%`;
+        document.getElementById('progress-percent').innerText = `${percent}%`;
 
-        // อัปเดตข้อความแสดงตัวเลขเศษส่วนของแต่ละโซนบนหน้าเว็บ
-        for (let i = 0; i < totalZones; i++) {
+        for (let i = 0; i < 5; i++) {
             document.getElementById(`zone${i}-status`).innerText = `${zoneChecked[i]} / ${zoneCounts[i]}`;
         }
-
-        // เซฟสถานะลง LocalStorage ของบราวเซอร์
-        const checkStatus = Array.from(checkboxes).map(cb => cb.checked);
-        localStorage.setItem('doorsMasterProgress', JSON.stringify(checkStatus));
     }
 
-    function loadProgress() {
-        const savedStatus = JSON.parse(localStorage.getItem('doorsMasterProgress'));
-        if (savedStatus) {
-            checkboxes.forEach((checkbox, index) => {
-                if(savedStatus[index] !== undefined) {
-                    checkbox.checked = savedStatus[index];
-                }
-            });
+    // ฟังก์ชันส่งข้อมูลเมื่อแอดมินคลิกติ๊กเลือก
+    async function handleCheckboxChange(e) {
+        if(!isAdmin) return;
+        
+        const taskId = parseInt(e.target.getAttribute('data-id'));
+        const isChecked = e.target.checked;
+
+        calculateUI(); // อัปเดตหน้าจอทันทีเพื่อความลื่นไหล
+
+        // ส่งคำสั่งอัปเดตไปยัง Supabase
+        const { error } = await supabase
+            .from('doors_progress')
+            .upsert({ task_id: taskId, is_checked: isChecked }, { onConflict: 'task_id' });
+
+        if (error) {
+            console.error('Error updating online data:', error);
         }
-        updateProgress();
     }
 
-    // ติดตั้ง Event ให้เช็คบ็อกซ์ทุกตัวทำงานเวลาคลิก
+    // ผูก Event การคลิก
     checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateProgress);
+        checkbox.addEventListener('change', handleCheckboxChange);
     });
 
-    // ให้ฟังก์ชันทำงานทันทีที่โหลดหน้าเว็บเสร็จ
-    window.addEventListener('DOMContentLoaded', loadProgress);
+    // ให้เว็บดึงข้อมูลใหม่แบบ Real-time ทุกๆ 5 วินาที
+    setInterval(fetchLiveProgress, 5000);
+
+    // โหลดข้อมูลครั้งแรกตอนเปิดหน้าเว็บ
+    window.addEventListener('DOMContentLoaded', fetchLiveProgress);
 </script>
 
 </body>
